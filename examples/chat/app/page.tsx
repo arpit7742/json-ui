@@ -40,20 +40,30 @@ const transport = new DefaultChatTransport({ api: "/api/generate" });
 
 const SUGGESTIONS = [
   {
-    label: "Weather comparison",
-    prompt: "Compare the weather in New York, London, and Tokyo",
+    label: "Operational Risk",
+    prompt:
+      "What's the operational risk score for outdoor construction in Mumbai today?",
   },
   {
-    label: "GitHub repo stats",
-    prompt: "Show me stats for the vercel/next.js and vercel/ai GitHub repos",
+    label: "Severe Weather Alerts",
+    prompt: "Are there any severe weather alerts for Delhi right now?",
   },
   {
-    label: "Crypto dashboard",
-    prompt: "Build a crypto dashboard for Bitcoin, Ethereum, and Solana",
+    label: "Lightning Assessment",
+    prompt: "Assess lightning risk for Bangalore operations",
   },
   {
-    label: "Hacker News top stories",
-    prompt: "Show me the top 15 Hacker News stories right now",
+    label: "Work Planning",
+    prompt: "Plan outdoor work windows for the next 3 days in Chennai",
+  },
+  {
+    label: "Full Ops Brief",
+    prompt: "Give me a full operational weather brief for Hyderabad",
+  },
+  {
+    label: "Precipitation Forecast",
+    prompt:
+      "Will it rain in Pune this week? Show me the precipitation forecast",
   },
 ];
 
@@ -63,13 +73,26 @@ const SUGGESTIONS = [
 
 /** Readable labels for tool names: [loading, done] */
 const TOOL_LABELS: Record<string, [string, string]> = {
-  getWeather: ["Getting weather data", "Got weather data"],
-  getGitHubRepo: ["Fetching GitHub repo", "Fetched GitHub repo"],
-  getGitHubPullRequests: ["Fetching pull requests", "Fetched pull requests"],
-  getCryptoPrice: ["Looking up crypto price", "Looked up crypto price"],
-  getCryptoPriceHistory: ["Fetching price history", "Fetched price history"],
-  getHackerNewsTop: ["Loading Hacker News", "Loaded Hacker News"],
-  webSearch: ["Searching the web", "Searched the web"],
+  geocodeCity: ["Locating coordinates", "Located coordinates"],
+  getWeather: ["Fetching weather data", "Weather data received"],
+  getSevereWeatherAlerts: [
+    "Scanning for severe weather alerts",
+    "Alert scan complete",
+  ],
+  getLightningRisk: [
+    "Assessing lightning risk",
+    "Lightning assessment complete",
+  ],
+  getPrecipitationForecast: [
+    "Analyzing precipitation forecast",
+    "Precipitation analysis ready",
+  ],
+  getOperationalRiskScore: [
+    "Calculating operational risk score",
+    "Risk score calculated",
+  ],
+  getWeatherTimeline: ["Building weather timeline", "Timeline generated"],
+  webSearch: ["Searching intelligence sources", "Intelligence gathered"],
 };
 
 function ToolCallDisplay({
@@ -136,9 +159,6 @@ function MessageBubble({
   const isUser = message.role === "user";
   const { spec, text, hasSpec } = useJsonRenderMessage(message.parts);
 
-  // Build ordered segments from parts, collapsing adjacent text and adjacent tools.
-  // Spec data parts are tracked so the rendered UI appears inline where the AI
-  // placed it rather than always at the bottom.
   const segments: Array<
     | { kind: "text"; text: string }
     | {
@@ -193,7 +213,6 @@ function MessageBubble({
         });
       }
     } else if (part.type === SPEC_DATA_PART_TYPE && !specInserted) {
-      // First spec data part — mark where the rendered UI should appear
       segments.push({ kind: "spec" });
       specInserted = true;
     }
@@ -207,7 +226,7 @@ function MessageBubble({
     return (
       <div className="flex justify-end">
         {text && (
-          <div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap bg-primary text-primary-foreground rounded-tr-md">
+          <div className="max-w-[85%] rounded-xl px-5 py-3 text-sm font-medium leading-relaxed whitespace-pre-wrap bg-foreground text-background">
             {text}
           </div>
         )}
@@ -215,20 +234,27 @@ function MessageBubble({
     );
   }
 
-  // If there's a spec but no spec segment was inserted (edge case),
-  // append it so it still renders.
   const specRenderedInline = specInserted;
   const showSpecAtEnd = hasSpec && !specRenderedInline;
 
   return (
     <div className="w-full flex flex-col gap-3">
+      {/* Agent timestamp */}
+      <p className="text-xs text-muted-foreground italic">
+        Agent &middot;{" "}
+        {new Date().toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        })}
+      </p>
+
       {segments.map((seg, i) => {
         if (seg.kind === "text") {
           const isLastSegment = i === segments.length - 1;
           return (
             <div
               key={`text-${i}`}
-              className="text-sm leading-relaxed [&_p+p]:mt-3 [&_ul]:mt-2 [&_ol]:mt-2 [&_pre]:mt-2"
+              className="text-sm leading-relaxed border border-border rounded-lg px-4 py-3 [&_p+p]:mt-3 [&_ul]:mt-2 [&_ol]:mt-2 [&_pre]:mt-2"
             >
               <Streamdown
                 plugins={{ code }}
@@ -297,7 +323,6 @@ export default function ChatPage() {
   const isStreaming = status === "streaming" || status === "submitted";
 
   // Track whether the user has scrolled away from the bottom.
-  // During programmatic scrolling, suppress button updates until we arrive.
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -307,8 +332,6 @@ export default function ChatPage() {
       const atBottom = scrollTop + clientHeight >= scrollHeight - THRESHOLD;
 
       if (isAutoScrolling.current) {
-        // Wait for the programmatic scroll to reach the bottom before
-        // handing control back to the user-scroll tracker.
         if (atBottom) {
           isAutoScrolling.current = false;
         }
@@ -322,9 +345,7 @@ export default function ChatPage() {
     return () => container.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Auto-scroll to bottom on new messages, unless user scrolled up.
-  // Uses instant scrollTop assignment (no smooth animation) to avoid
-  // an ongoing animation that fights user scroll input.
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container || !isStickToBottom.current) return;
@@ -342,7 +363,6 @@ export default function ChatPage() {
     setShowScrollButton(false);
     isAutoScrolling.current = true;
     container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-    // isAutoScrolling is cleared by the scroll handler once it reaches bottom
   }, []);
 
   const handleSubmit = useCallback(
@@ -371,6 +391,18 @@ export default function ChatPage() {
     inputRef.current?.focus();
   }, [setMessages]);
 
+  // Listen for suggested prompt clicks from the SuggestedPrompts component
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const prompt = (e as CustomEvent).detail as string;
+      if (prompt) {
+        handleSubmit(prompt);
+      }
+    };
+    window.addEventListener("flash-suggested-prompt", handler);
+    return () => window.removeEventListener("flash-suggested-prompt", handler);
+  }, [handleSubmit]);
+
   const isEmpty = messages.length === 0;
 
   return (
@@ -378,9 +410,22 @@ export default function ChatPage() {
       {/* Header */}
       <header className="border-b px-6 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold">json-render Chat Example</h1>
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="white"
+              className="h-4 w-4"
+            >
+              <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h1 className="text-lg font-semibold">FlashWeather Command Center</h1>
         </div>
         <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border border-border rounded px-2 py-0.5">
+            GENERATIVE UI
+          </span>
           {messages.length > 0 && (
             <button
               onClick={handleClear}
@@ -400,12 +445,22 @@ export default function ChatPage() {
           <div className="h-full flex flex-col items-center justify-center px-6 py-12">
             <div className="max-w-2xl w-full space-y-8">
               <div className="text-center space-y-2">
+                <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 mb-3">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="white"
+                    className="h-7 w-7"
+                  >
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
                 <h2 className="text-2xl font-semibold tracking-tight">
-                  What would you like to explore?
+                  FlashWeather AI Operations Copilot
                 </h2>
                 <p className="text-muted-foreground">
-                  Ask about weather, GitHub repos, crypto prices, or Hacker News
-                  -- the agent will fetch real data and build a dashboard.
+                  Real-time weather intelligence, operational risk scoring, and
+                  proactive recommendations for your operations.
                 </p>
               </div>
 
@@ -426,7 +481,7 @@ export default function ChatPage() {
           </div>
         ) : (
           /* Message thread */
-          <div className="max-w-4xl mx-auto px-10 py-6 space-y-6">
+          <div className="max-w-6xl mx-auto px-8 py-6 space-y-6">
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id}
@@ -448,9 +503,8 @@ export default function ChatPage() {
         )}
       </main>
 
-      {/* Input bar - always visible at bottom */}
+      {/* Input bar */}
       <div className="px-6 pb-3 flex-shrink-0 bg-background relative">
-        {/* Scroll to bottom button */}
         {showScrollButton && !isEmpty && (
           <button
             onClick={scrollToBottom}
@@ -460,7 +514,7 @@ export default function ChatPage() {
             <ArrowDown className="h-4 w-4" />
           </button>
         )}
-        <div className="max-w-4xl mx-auto relative">
+        <div className="max-w-6xl mx-auto relative">
           <textarea
             ref={inputRef}
             value={input}
@@ -468,8 +522,8 @@ export default function ChatPage() {
             onKeyDown={handleKeyDown}
             placeholder={
               isEmpty
-                ? "e.g., Compare weather in NYC, London, and Tokyo..."
-                : "Ask a follow-up..."
+                ? "e.g., What's the operational risk for outdoor work in Mumbai today?"
+                : "Ask a follow-up, change city, or generate a different component..."
             }
             rows={2}
             className="w-full resize-none rounded-xl border border-input bg-card px-4 py-3 pr-12 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

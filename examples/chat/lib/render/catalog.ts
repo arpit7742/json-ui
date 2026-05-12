@@ -221,6 +221,183 @@ export const explorerCatalog = defineCatalog(schema, {
         'Pie/donut chart for proportional data. Use { "$state": "/path" } to bind read-only data. nameKey is the label field, valueKey is the numeric value field.',
     },
 
+    AreaChart: {
+      props: z.object({
+        title: z.string().nullable(),
+        data: z.array(z.record(z.string(), z.unknown())),
+        xKey: z.string(),
+        yKey: z.string(),
+        color: z.string().nullable(),
+        gradientFrom: z.string().nullable(),
+        gradientTo: z.string().nullable(),
+        height: z.number().nullable(),
+      }),
+      description:
+        'Area chart with gradient fill. Great for precipitation, temperature trends, and risk timelines. Use { "$state": "/path" } to bind data.',
+    },
+
+    WeatherMap: {
+      props: z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+        zoom: z.number().nullable(),
+        height: z.string().nullable(),
+        label: z.string().nullable(),
+      }),
+      description:
+        "Embedded weather map showing location with OpenStreetMap. Use to visualize the geographic context of weather data.",
+      example: {
+        latitude: 19.076,
+        longitude: 72.8777,
+        zoom: 10,
+        height: "300px",
+        label: "Mumbai",
+      },
+    },
+
+    RiskGauge: {
+      props: z.object({
+        score: z.number(),
+        maxScore: z.number().nullable(),
+        label: z.string().nullable(),
+        decision: z.enum(["GO", "CAUTION", "NO-GO"]).nullable(),
+      }),
+      description:
+        "Visual risk gauge showing a score from 0-100 with color-coded decision indicator. Use for operational go/no-go displays.",
+      example: {
+        score: 45,
+        maxScore: 100,
+        label: "Operational Risk",
+        decision: "CAUTION",
+      },
+    },
+
+    StatusIndicator: {
+      props: z.object({
+        status: z.enum(["operational", "degraded", "critical", "offline"]),
+        label: z.string(),
+        detail: z.string().nullable(),
+      }),
+      description:
+        "Status indicator with colored dot showing operational state. Use for system status, alert status, or condition monitoring.",
+      example: {
+        status: "operational",
+        label: "Wind Monitoring",
+        detail: "All sensors active",
+      },
+    },
+
+    SuggestedPrompts: {
+      props: z.object({
+        prompts: z.array(
+          z.object({
+            label: z.string(),
+            prompt: z.string(),
+          }),
+        ),
+      }),
+      description:
+        "Suggested follow-up prompts displayed as clickable cards at the bottom of a response. ALWAYS include 3-4 contextual follow-up suggestions after every response to guide the user to deeper insights.",
+      example: {
+        prompts: [
+          {
+            label: "Show affected routes",
+            prompt: "Show me which routes are affected by heavy rain",
+          },
+          {
+            label: "Draft advisory",
+            prompt: "Draft a cold-weather exposure advisory for field teams",
+          },
+          {
+            label: "Generate staffing plan",
+            prompt:
+              "Move outdoor work to Saturday and generate a staffing plan",
+          },
+        ],
+      },
+    },
+
+    ActionPanel: {
+      props: z.object({
+        title: z.string().nullable(),
+        description: z.string().nullable(),
+        actions: z.array(
+          z.object({
+            label: z.string(),
+            variant: z.enum(["primary", "secondary", "outline"]),
+            description: z.string().nullable(),
+          }),
+        ),
+      }),
+      description:
+        "Human-in-the-loop action panel with multiple action buttons. Use for operational decisions that require human confirmation — approve/reject, send notifications, apply configurations.",
+      example: {
+        title: "HUMAN IN THE LOOP",
+        description: "Generated rules wait for operator decision",
+        actions: [
+          {
+            label: "Confirm",
+            variant: "primary",
+            description: "Apply generated configuration",
+          },
+          {
+            label: "Edit rules",
+            variant: "secondary",
+            description: "Review and change before apply",
+          },
+          {
+            label: "Cancel",
+            variant: "outline",
+            description: "Keep current settings",
+          },
+        ],
+      },
+    },
+
+    NumberedList: {
+      props: z.object({
+        title: z.string().nullable(),
+        items: z.array(z.string()),
+      }),
+      description:
+        "Numbered list of recommended actions or steps. Use for operational recommendations, action items, and prioritized lists.",
+      example: {
+        title: "Recommended actions",
+        items: [
+          "Move outdoor inventory under cover by 3 PM",
+          "Notify managers via SMS",
+          "Pre-stage inspection crew",
+        ],
+      },
+    },
+
+    ForecastStrip: {
+      props: z.object({
+        days: z.array(
+          z.object({
+            label: z.string(),
+            value: z.string(),
+            detail: z.string().nullable(),
+            severity: z.enum(["low", "medium", "high", "extreme"]).nullable(),
+          }),
+        ),
+      }),
+      description:
+        "Horizontal strip of day forecast cards. ALWAYS use this for 7-day forecasts instead of Grid+Metric. Each card shows day label, temperature, and condition. Cards are displayed side-by-side in a single row with colored top borders based on severity (low=grey, medium=amber, high=red, extreme=black).",
+      example: {
+        days: [
+          { label: "MON", value: "24°C", detail: "Rain 10%", severity: "low" },
+          {
+            label: "TUE",
+            value: "21°C",
+            detail: "Rain 70%",
+            severity: "medium",
+          },
+          { label: "WED", value: "3°C", detail: "Snow 55%", severity: "high" },
+        ],
+      },
+    },
+
     // Interactive / Input
     RadioGroup: {
       props: z.object({

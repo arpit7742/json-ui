@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "json-render Chat Example",
-  description: "AI-powered data explorer using ToolLoopAgent and json-render",
+  title: "FlashWeather Command Center",
+  description:
+    "AI-powered weather operations copilot with real-time intelligence and operational risk scoring",
 };
 
 export default function RootLayout({

@@ -7,11 +7,14 @@ import {
   Bar,
   BarChart as RechartsBarChart,
   CartesianGrid,
+  Cell,
   Legend,
   Line,
   LineChart as RechartsLineChart,
   Pie,
   PieChart as RechartsPieChart,
+  Area,
+  AreaChart as RechartsAreaChart,
   XAxis,
 } from "recharts";
 import {
@@ -233,15 +236,36 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
           : props.trend === "down"
             ? "text-red-500"
             : "text-muted-foreground";
+
+      // Handle unresolved $state bindings — display the raw value or empty
+      const displayValue =
+        typeof props.value === "string"
+          ? props.value
+          : typeof props.value === "number"
+            ? String(props.value)
+            : props.value != null && typeof props.value === "object"
+              ? ""
+              : "";
+      const displayDetail =
+        typeof props.detail === "string" ? props.detail : "";
+
       return (
-        <div className="flex flex-col gap-1">
-          <p className="text-sm text-muted-foreground">{props.label}</p>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold">{props.value}</span>
-            {props.trend && <TrendIcon className={`h-4 w-4 ${trendColor}`} />}
+        <div className="flex flex-col justify-between bg-card border border-border p-3 min-w-0 min-h-[72px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            {props.label}
+          </p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[22px] font-extrabold text-foreground truncate">
+              {displayValue}
+            </span>
+            {props.trend && (
+              <TrendIcon className={`h-3.5 w-3.5 shrink-0 ${trendColor}`} />
+            )}
           </div>
-          {props.detail && (
-            <p className="text-xs text-muted-foreground">{props.detail}</p>
+          {displayDetail && (
+            <p className="text-xs text-muted-foreground truncate">
+              {displayDetail}
+            </p>
           )}
         </div>
       );
@@ -353,7 +377,11 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
           ? ((rawData as Record<string, unknown>).data as Array<
               Record<string, unknown>
             >)
-          : [];
+          : typeof rawData === "object" &&
+              rawData !== null &&
+              "$state" in (rawData as object)
+            ? [] // unresolved $state binding
+            : [];
 
       const { items, valueKey } = processChartData(
         rawItems,
@@ -362,19 +390,43 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
         props.aggregate,
       );
 
-      const chartColor = props.color ?? "var(--chart-1)";
+      // Assign colors based on value intensity (matching Paper design palette)
+      // Amber and red work in both light/dark. Grey and black adapt via CSS.
+      const BAR_COLORS_BY_VALUE = (value: number, max: number): string => {
+        const ratio = max > 0 ? value / max : 0;
+        if (ratio < 0.15) return "#9CA3AF"; // low - neutral grey (visible in both modes)
+        if (ratio < 0.5) return "#D8941F"; // medium - amber/gold
+        if (ratio < 0.75) return "#D44A3D"; // high - red
+        return "#374151"; // extreme - dark grey (visible in both modes)
+      };
+
+      const maxVal = Math.max(
+        ...items.map((item) => {
+          const v = item[valueKey];
+          return typeof v === "number" ? v : parseFloat(String(v)) || 0;
+        }),
+        1,
+      );
+
+      const coloredItems = items.map((item) => {
+        const v =
+          typeof item[valueKey] === "number"
+            ? (item[valueKey] as number)
+            : parseFloat(String(item[valueKey])) || 0;
+        return { ...item, fill: BAR_COLORS_BY_VALUE(v, maxVal) };
+      });
 
       const chartConfig = {
         [valueKey]: {
           label: valueKey,
-          color: chartColor,
+          color: props.color ?? "var(--chart-1)",
         },
       } satisfies ChartConfig;
 
       if (items.length === 0) {
         return (
           <div className="text-center py-4 text-muted-foreground">
-            No data available
+            Loading...
           </div>
         );
       }
@@ -389,7 +441,7 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
             className="min-h-[200px] w-full"
             style={{ height: props.height ?? 300 }}
           >
-            <RechartsBarChart accessibilityLayer data={items}>
+            <RechartsBarChart accessibilityLayer data={coloredItems}>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="label"
@@ -398,11 +450,11 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
                 axisLine={false}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar
-                dataKey={valueKey}
-                fill={`var(--color-${valueKey})`}
-                radius={4}
-              />
+              <Bar dataKey={valueKey} radius={4}>
+                {coloredItems.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
             </RechartsBarChart>
           </ChartContainer>
         </div>
@@ -438,7 +490,7 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
       if (items.length === 0) {
         return (
           <div className="text-center py-4 text-muted-foreground">
-            No data available
+            Loading...
           </div>
         );
       }
@@ -599,7 +651,7 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
       if (items.length === 0) {
         return (
           <div className="text-center py-4 text-muted-foreground">
-            No data available
+            Loading...
           </div>
         );
       }
@@ -643,6 +695,327 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
               <Legend />
             </RechartsPieChart>
           </ChartContainer>
+        </div>
+      );
+    },
+
+    AreaChart: ({ props }) => {
+      const rawData = props.data;
+      const rawItems: Array<Record<string, unknown>> = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray((rawData as Record<string, unknown>)?.data)
+          ? ((rawData as Record<string, unknown>).data as Array<
+              Record<string, unknown>
+            >)
+          : [];
+
+      const items = rawItems.map((item) => ({
+        ...item,
+        label: String(item[props.xKey] ?? ""),
+      }));
+
+      const chartColor = props.color ?? "var(--chart-1)";
+      const chartConfig = {
+        [props.yKey]: { label: props.yKey, color: chartColor },
+      } satisfies ChartConfig;
+
+      if (items.length === 0) {
+        return (
+          <div className="text-center py-4 text-muted-foreground">
+            Loading...
+          </div>
+        );
+      }
+
+      return (
+        <div className="w-full">
+          {props.title && (
+            <p className="text-sm font-medium mb-2">{props.title}</p>
+          )}
+          <ChartContainer
+            config={chartConfig}
+            className="min-h-[200px] w-full [&_svg]:overflow-visible"
+            style={{ height: props.height ?? 250 }}
+          >
+            <RechartsAreaChart accessibilityLayer data={items}>
+              <defs>
+                <linearGradient
+                  id={`gradient-${props.yKey}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
+                  <stop
+                    offset="95%"
+                    stopColor={chartColor}
+                    stopOpacity={0.05}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                tickMargin={10}
+                axisLine={false}
+                interval={
+                  items.length > 12
+                    ? Math.ceil(items.length / 8) - 1
+                    : undefined
+                }
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Area
+                type="monotone"
+                dataKey={props.yKey}
+                stroke={chartColor}
+                strokeWidth={2}
+                fill={`url(#gradient-${props.yKey})`}
+              />
+            </RechartsAreaChart>
+          </ChartContainer>
+        </div>
+      );
+    },
+
+    WeatherMap: ({ props }) => {
+      const zoom = props.zoom ?? 10;
+      const height = props.height ?? "300px";
+      const src = `https://www.openstreetmap.org/export/embed.html?bbox=${props.longitude - 0.5 / zoom}%2C${props.latitude - 0.3 / zoom}%2C${props.longitude + 0.5 / zoom}%2C${props.latitude + 0.3 / zoom}&layer=mapnik&marker=${props.latitude}%2C${props.longitude}`;
+
+      return (
+        <div
+          className="w-full rounded-lg overflow-hidden border"
+          style={{ height }}
+        >
+          <iframe
+            src={src}
+            style={{ width: "100%", height: "100%", border: 0 }}
+            title={props.label ?? "Weather Map"}
+            loading="lazy"
+          />
+          {props.label && (
+            <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium">
+              📍 {props.label}
+            </div>
+          )}
+        </div>
+      );
+    },
+
+    RiskGauge: ({ props }) => {
+      const max = props.maxScore ?? 100;
+      const score = props.score ?? 0;
+      const pct = Math.min(100, Math.round((score / max) * 100)) || 0;
+      const badgeColor =
+        props.decision === "GO"
+          ? "bg-emerald-500"
+          : props.decision === "CAUTION"
+            ? "bg-amber-500"
+            : props.decision === "NO-GO"
+              ? "bg-red-500"
+              : pct < 40
+                ? "bg-emerald-500"
+                : pct < 70
+                  ? "bg-amber-500"
+                  : "bg-red-500";
+      const strokeColor =
+        props.decision === "GO" || pct < 40
+          ? "#10b981"
+          : props.decision === "CAUTION" || pct < 70
+            ? "#f59e0b"
+            : "#ef4444";
+
+      const radius = 40;
+      const circumference = Math.PI * radius;
+      const arcLength = (pct / 100) * circumference;
+
+      return (
+        <div className="flex flex-col items-center gap-3 py-6">
+          <div className="relative w-36 h-20">
+            <svg viewBox="0 0 100 55" className="w-full h-full">
+              <path
+                d="M 10 50 A 40 40 0 0 1 90 50"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="8"
+                strokeLinecap="round"
+                className="text-muted/20"
+              />
+              <path
+                d="M 10 50 A 40 40 0 0 1 90 50"
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={`${arcLength} ${circumference}`}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-end justify-center pb-0">
+              <span className="text-3xl font-bold">{String(pct)}</span>
+              <span className="text-sm text-muted-foreground ml-0.5 mb-1">
+                %
+              </span>
+            </div>
+          </div>
+          {props.label && (
+            <p className="text-sm text-muted-foreground">{props.label}</p>
+          )}
+          {props.decision && (
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white ${badgeColor}`}
+            >
+              {props.decision}
+            </span>
+          )}
+        </div>
+      );
+    },
+
+    SuggestedPrompts: ({ props }) => {
+      const borderColors = ["#D8941F", "#D44A3D", "#111111", "#111111"];
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+          {(props.prompts ?? []).map((p, i) => (
+            <button
+              key={i}
+              type="button"
+              className="text-left bg-card border border-border p-3.5 hover:bg-accent transition-colors group flex flex-col justify-between gap-2"
+              style={{
+                borderLeftWidth: "4px",
+                borderLeftColor: borderColors[i % borderColors.length],
+              }}
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent("flash-suggested-prompt", {
+                    detail: p.prompt,
+                  }),
+                );
+              }}
+            >
+              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {i === (props.prompts ?? []).length - 1
+                  ? "NEXT BEST ACTION"
+                  : "SUGGESTED PROMPT"}
+              </p>
+              <p className="text-[13px] font-bold leading-snug text-foreground">
+                {p.label}
+              </p>
+            </button>
+          ))}
+        </div>
+      );
+    },
+
+    ActionPanel: ({ props }) => (
+      <div className="border border-border rounded-lg p-4 mt-2">
+        <div className="flex items-center justify-between mb-3">
+          {props.title && (
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {props.title}
+            </p>
+          )}
+          {props.description && (
+            <p className="text-xs text-muted-foreground">{props.description}</p>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {(props.actions ?? []).map((action, i) => {
+            const base =
+              "rounded-lg px-4 py-3 text-sm font-medium transition-colors text-center";
+            const variant =
+              action.variant === "primary"
+                ? `${base} bg-foreground text-background hover:bg-foreground/90`
+                : action.variant === "secondary"
+                  ? `${base} border border-border bg-card hover:bg-accent`
+                  : `${base} border border-border bg-background hover:bg-accent text-muted-foreground`;
+            return (
+              <button key={i} type="button" className={variant}>
+                <span className="block">{action.label}</span>
+                {action.description && (
+                  <span className="block text-xs opacity-70 mt-0.5">
+                    {action.description}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    ),
+
+    NumberedList: ({ props }) => (
+      <div className="space-y-1">
+        {props.title && (
+          <p className="text-sm font-semibold mb-2">{props.title}</p>
+        )}
+        {(props.items ?? []).map((item, i) => (
+          <div key={i} className="flex items-start gap-3 py-1.5">
+            <span className="text-sm font-semibold text-muted-foreground min-w-[1.5rem]">
+              {i + 1}
+            </span>
+            <span className="text-sm">{item}</span>
+          </div>
+        ))}
+      </div>
+    ),
+
+    ForecastStrip: ({ props }) => {
+      const borderColors: Record<string, string> = {
+        low: "var(--border)",
+        medium: "#D8941F",
+        high: "#D44A3D",
+        extreme: "var(--foreground)",
+      };
+      return (
+        <div className="flex gap-2 overflow-x-auto">
+          {(props.days ?? []).map((day, i) => (
+            <div
+              key={i}
+              className="flex-1 min-w-[90px] flex flex-col justify-between bg-card border border-border p-2.5"
+              style={{
+                borderTopWidth: "4px",
+                borderTopColor: borderColors[day.severity ?? "low"],
+              }}
+            >
+              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {day.label}
+              </p>
+              <p className="font-sans font-extrabold text-foreground text-[22px] leading-6">
+                {day.value}
+              </p>
+              {day.detail && (
+                <p className="font-sans text-foreground text-xs">
+                  {day.detail}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    },
+
+    StatusIndicator: ({ props }) => {
+      const dotColor = {
+        operational: "bg-emerald-500",
+        degraded: "bg-amber-500",
+        critical: "bg-red-500",
+        offline: "bg-gray-400",
+      }[props.status];
+
+      return (
+        <div className="flex items-center gap-2">
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${dotColor} animate-pulse`}
+          />
+          <span className="text-sm font-medium">{props.label}</span>
+          {props.detail && (
+            <span className="text-xs text-muted-foreground">
+              — {props.detail}
+            </span>
+          )}
         </div>
       );
     },
