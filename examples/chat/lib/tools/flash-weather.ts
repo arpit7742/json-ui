@@ -18,7 +18,7 @@ export const getSevereWeatherAlerts = tool({
   }),
   execute: async ({ latitude, longitude, city }) => {
     // Fetch current + hourly data to derive alert conditions
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,relative_humidity_2m,precipitation&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,visibility,uv_index&forecast_days=2&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,relative_humidity_2m,precipitation,snowfall&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,visibility,uv_index&forecast_days=2&timezone=auto`;
 
     const res = await fetch(url);
     if (!res.ok) return { error: "Failed to fetch weather data for alerts" };
@@ -30,8 +30,10 @@ export const getSevereWeatherAlerts = tool({
         weather_code: number;
         wind_speed_10m: number;
         wind_gusts_10m: number;
+        wind_direction_10m: number;
         relative_humidity_2m: number;
         precipitation: number;
+        snowfall: number;
       };
       hourly: {
         time: string[];
@@ -182,6 +184,8 @@ export const getSevereWeatherAlerts = tool({
 
     return {
       location: city ?? `${latitude}, ${longitude}`,
+      latitude,
+      longitude,
       timestamp: new Date().toISOString(),
       alertCount: alerts.filter((a) => a.type !== "clear").length,
       overallRisk: alerts.reduce(
@@ -191,6 +195,17 @@ export const getSevereWeatherAlerts = tool({
         },
         "low" as "critical" | "high" | "medium" | "low",
       ),
+      // Surfaced so the agent can pass them into the animated WeatherMap.
+      animationData: {
+        windSpeedKmh: current.wind_speed_10m,
+        windGustsKmh: current.wind_gusts_10m,
+        windDirectionDeg: current.wind_direction_10m,
+        precipitationMm: current.precipitation,
+        snowfallMm: current.snowfall,
+        temperatureC: current.temperature_2m,
+        lightningActive: current.weather_code >= 95,
+        weatherCode: current.weather_code,
+      },
       alerts,
     };
   },

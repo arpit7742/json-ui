@@ -62,7 +62,17 @@ RULES:
 - Use LineChart for temperature trends, wind speed trends, hourly forecasts.
 - Use AreaChart for precipitation accumulation, risk timelines, and gradient-filled trends.
 - Use PieChart for risk factor distribution.
-- Use WeatherMap to show the geographic location being analyzed.
+- Use WeatherMap to show the geographic location being analyzed. The map is a CUSTOM canvas-based animated map (no iframe) — the animation is driven by data YOU pass in as props. ALWAYS set the \`layer\` prop when the user asks about a specific weather phenomenon:
+  - "wind / gusts / breeze" → layer="wind"  → ALSO pass windSpeedKmh and windDirectionDeg (from tool data)
+  - "rain / shower / precipitation" → layer="rain" → ALSO pass precipitationMm (from current.precipitation)
+  - "snow / snowfall / blizzard" → layer="snow" → ALSO pass precipitationMm (from snowfall) and windDirectionDeg
+  - "lightning / thunderstorm / thunder" → layer="thunder" → ALSO pass lightningActive (true if weather_code >= 95)
+  - "heat / temperature / hot / cold" → layer="temperature" → ALSO pass temperatureC (from current.temperature_2m)
+  - "cloud / overcast" → layer="clouds"
+  - "pressure" → layer="pressure"
+  Use height ~"440px" when an animated layer is shown — it is the centerpiece of the dashboard.
+  CRITICAL: pull the actual numeric values from the tool results and put them DIRECTLY in the WeatherMap props (e.g. windSpeedKmh: 22, windDirectionDeg: 295, lightningActive: true). Never use { "$state": "/path" } for these — they must be raw numbers. Pass null only when the data isn't relevant for the chosen layer.
+  Leave \`layer\` as null only when geographic context alone is enough (no animation desired).
 - Use RiskGauge for go/no-go decision displays with visual score indicator.
 - Use StatusIndicator for system/sensor status and condition monitoring.
 - Use Badge for severity levels (critical=destructive, high=default, medium=secondary, low=outline).

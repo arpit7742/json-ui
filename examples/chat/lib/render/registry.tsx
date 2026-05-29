@@ -67,6 +67,7 @@ import {
 import type * as THREE from "three";
 
 import { explorerCatalog } from "./catalog";
+import { WeatherMap as AnimatedWeatherMap } from "./weather-map";
 
 // =============================================================================
 // 3D Helper Types & Components
@@ -780,30 +781,22 @@ export const { registry, handlers } = defineRegistry(explorerCatalog, {
       );
     },
 
-    WeatherMap: ({ props }) => {
-      const zoom = props.zoom ?? 10;
-      const height = props.height ?? "300px";
-      const src = `https://www.openstreetmap.org/export/embed.html?bbox=${props.longitude - 0.5 / zoom}%2C${props.latitude - 0.3 / zoom}%2C${props.longitude + 0.5 / zoom}%2C${props.latitude + 0.3 / zoom}&layer=mapnik&marker=${props.latitude}%2C${props.longitude}`;
-
-      return (
-        <div
-          className="w-full rounded-lg overflow-hidden border"
-          style={{ height }}
-        >
-          <iframe
-            src={src}
-            style={{ width: "100%", height: "100%", border: 0 }}
-            title={props.label ?? "Weather Map"}
-            loading="lazy"
-          />
-          {props.label && (
-            <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium">
-              📍 {props.label}
-            </div>
-          )}
-        </div>
-      );
-    },
+    WeatherMap: ({ props }) => (
+      <AnimatedWeatherMap
+        latitude={props.latitude}
+        longitude={props.longitude}
+        zoom={props.zoom}
+        height={props.height}
+        label={props.label}
+        layer={props.layer}
+        windSpeedKmh={props.windSpeedKmh}
+        windDirectionDeg={props.windDirectionDeg}
+        precipitationMm={props.precipitationMm}
+        temperatureC={props.temperatureC}
+        lightningActive={props.lightningActive}
+        intensity={props.intensity}
+      />
+    ),
 
     RiskGauge: ({ props }) => {
       const max = props.maxScore ?? 100;

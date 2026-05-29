@@ -40,30 +40,32 @@ const transport = new DefaultChatTransport({ api: "/api/generate" });
 
 const SUGGESTIONS = [
   {
+    label: "Wind Map",
+    prompt:
+      "Show me the animated wind map over Delhi right now with an operational summary",
+  },
+  {
+    label: "Lightning Strikes",
+    prompt:
+      "Show the live lightning map for Bangalore and assess thunderstorm risk",
+  },
+  {
+    label: "Snow Map",
+    prompt: "Show the animated snowfall map for Shimla and the 3-day outlook",
+  },
+  {
+    label: "Rain Radar",
+    prompt:
+      "Show me the live precipitation radar for Mumbai and a 24h rain forecast",
+  },
+  {
     label: "Operational Risk",
     prompt:
       "What's the operational risk score for outdoor construction in Mumbai today?",
   },
   {
-    label: "Severe Weather Alerts",
-    prompt: "Are there any severe weather alerts for Delhi right now?",
-  },
-  {
-    label: "Lightning Assessment",
-    prompt: "Assess lightning risk for Bangalore operations",
-  },
-  {
-    label: "Work Planning",
-    prompt: "Plan outdoor work windows for the next 3 days in Chennai",
-  },
-  {
     label: "Full Ops Brief",
     prompt: "Give me a full operational weather brief for Hyderabad",
-  },
-  {
-    label: "Precipitation Forecast",
-    prompt:
-      "Will it rain in Pune this week? Show me the precipitation forecast",
   },
 ];
 

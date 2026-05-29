@@ -243,15 +243,66 @@ export const explorerCatalog = defineCatalog(schema, {
         zoom: z.number().nullable(),
         height: z.string().nullable(),
         label: z.string().nullable(),
+        layer: z
+          .enum([
+            "wind",
+            "rain",
+            "snow",
+            "thunder",
+            "temperature",
+            "clouds",
+            "pressure",
+          ])
+          .nullable(),
+        // Animation data — pass the actual values from your weather tools.
+        windSpeedKmh: z
+          .number()
+          .nullable()
+          .describe(
+            "Wind speed in km/h (use wind_speed_10m or wind_gusts_10m from getWeather / getSevereWeatherAlerts).",
+          ),
+        windDirectionDeg: z
+          .number()
+          .nullable()
+          .describe(
+            "Wind direction in degrees (0=N, 90=E, 180=S, 270=W). Direction the wind COMES FROM. Use wind_direction_10m.",
+          ),
+        precipitationMm: z
+          .number()
+          .nullable()
+          .describe(
+            "Precipitation rate in mm/h (use current.precipitation or current snowfall).",
+          ),
+        temperatureC: z
+          .number()
+          .nullable()
+          .describe("Current temperature in °C (use current.temperature_2m)."),
+        lightningActive: z
+          .boolean()
+          .nullable()
+          .describe(
+            "True when weather_code >= 95 (active thunderstorm) — drives lightning flash density.",
+          ),
+        intensity: z
+          .number()
+          .nullable()
+          .describe("Optional 0..1 override to scale animation intensity."),
       }),
       description:
-        "Embedded weather map showing location with OpenStreetMap. Use to visualize the geographic context of weather data.",
+        "Animated weather map (NO iframe). Renders a dark raster base map + a canvas particle/effect overlay driven by your data. Set `layer` to enable the matching animation: 'wind' = particle streamlines flowing along the wind vector, 'rain' = tilted droplets, 'snow' = drifting flakes, 'thunder' = drifting storm clouds + lightning bolt flashes, 'temperature' = pulsing heat gradient, 'clouds' = drifting cloud blobs, 'pressure' = expanding isobars. Always pass the matching data field so the animation reflects real conditions (windSpeedKmh + windDirectionDeg for 'wind', precipitationMm for 'rain'/'snow', lightningActive for 'thunder', temperatureC for 'temperature'). Use height ~'440px' when an animated layer is shown.",
       example: {
-        latitude: 19.076,
-        longitude: 72.8777,
-        zoom: 10,
-        height: "300px",
-        label: "Mumbai",
+        latitude: 28.6139,
+        longitude: 77.209,
+        zoom: 5,
+        height: "440px",
+        label: "Delhi",
+        layer: "wind",
+        windSpeedKmh: 22,
+        windDirectionDeg: 295,
+        precipitationMm: null,
+        temperatureC: 28,
+        lightningActive: null,
+        intensity: null,
       },
     },
 
